@@ -13,6 +13,9 @@
   --color-disabled-text: #94A3B8;
   --color-error: #EF4444;
 
+  /* UI Scale */
+  --ui-font-size: 16px;
+
   /* Spacing & Sizing */
   --header-height: 64px;
   --border-radius: 10px;
@@ -30,9 +33,13 @@
   padding: 0;
 }
 
+html {
+  font-size: var(--ui-font-size);
+}
+
 body {
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.6;
   color: var(--color-text-main);
   background-color: var(--color-bg);
@@ -1810,7 +1817,7 @@ p { margin-bottom: 0.5rem; }
   gap: 6px 12px;
   align-items: center;
   color: var(--color-text-main) !important;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .x-spreadsheet-toolbar-btns {
@@ -1835,7 +1842,7 @@ p { margin-bottom: 0.5rem; }
   border: 1px solid transparent !important;
   background-color: transparent !important;
   padding: 0 12px !important;
-  font-size: 13px !important;
+  font-size: 0.8125rem !important;
   font-weight: 500;
   color: var(--color-text-main) !important;
   display: inline-flex !important;
@@ -1851,7 +1858,7 @@ p { margin-bottom: 0.5rem; }
   border: 1px solid var(--color-border) !important; /* Explicitly define border */
   background-color: #f8fafc !important;
   padding: 0 8px !important; /* Adjust padding for dropdowns */
-  font-size: 13px !important;
+  font-size: 0.8125rem !important;
   font-weight: 500;
   color: var(--color-text-main) !important;
   display: inline-flex !important;
@@ -1984,7 +1991,7 @@ p { margin-bottom: 0.5rem; }
   padding: 0 16px !important;
   min-height: 32px !important;
   line-height: 32px !important;
-  font-size: 13px !important;
+  font-size: 0.8125rem !important;
   transition: all 0.15s ease;
 }
 

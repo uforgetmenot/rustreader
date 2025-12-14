@@ -4,6 +4,69 @@
   <meta charset="UTF-8" />
   <title>文件浏览器</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    (() => {
+      const STORAGE_KEY = 'ui.fontSizePx';
+      const MIN_FONT_SIZE = 14;
+      const MAX_FONT_SIZE = 28;
+      const FONT_SIZE_STEP = 1;
+
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+      const applyFontSize = (value, persist) => {
+        const fontPx = clamp(Math.round(value), MIN_FONT_SIZE, MAX_FONT_SIZE);
+        document.documentElement.style.setProperty('--ui-font-size', `${fontPx}px`);
+        window.__UI_FONT_SIZE_PX__ = fontPx;
+        if (persist) {
+          try {
+            localStorage.setItem(STORAGE_KEY, String(fontPx));
+          } catch {}
+        }
+      };
+
+      const computeDefaultFontSize = () => {
+        const dpr = Number(window.devicePixelRatio) || 1;
+        const screenWidth = Number(window.screen?.width) || 0;
+        const screenHeight = Number(window.screen?.height) || 0;
+        const maxSide = Math.max(screenWidth, screenHeight);
+
+        if (dpr >= 1.25) return 16;
+        if (maxSide >= 3800) return 20;
+        if (maxSide >= 2560) return 18;
+        return 16;
+      };
+
+      const defaultFontSize = computeDefaultFontSize();
+      let initialFontSize = defaultFontSize;
+
+      try {
+        const stored = Number(localStorage.getItem(STORAGE_KEY));
+        if (Number.isFinite(stored)) initialFontSize = stored;
+      } catch {}
+
+      applyFontSize(initialFontSize, false);
+
+      window.addEventListener('keydown', (event) => {
+        const modifierDown = event.ctrlKey || event.metaKey;
+        if (!modifierDown || event.altKey) return;
+
+        const current = Number(window.__UI_FONT_SIZE_PX__) || defaultFontSize;
+
+        if (event.key === '=' || event.key === '+') {
+          event.preventDefault();
+          applyFontSize(current + FONT_SIZE_STEP, true);
+        } else if (event.key === '-' || event.key === '_') {
+          event.preventDefault();
+          applyFontSize(current - FONT_SIZE_STEP, true);
+        } else if (event.key === '0') {
+          event.preventDefault();
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+          } catch {}
+          applyFontSize(defaultFontSize, false);
+        }
+      });
+    })();
+  </script>
 
   <!-- Custom Styles -->
   <link rel="stylesheet" href="assets/styles.css" />
@@ -1854,11 +1917,21 @@
             throw err;
           }
           const viewport = page.getViewport({ scale });
-          entry.canvas.height = viewport.height;
-          entry.canvas.width = viewport.width;
+          const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+          entry.canvas.width = Math.floor(viewport.width * outputScale);
+          entry.canvas.height = Math.floor(viewport.height * outputScale);
+          entry.canvas.style.width = `${viewport.width}px`;
           setStatus(`渲染第 ${pageNumber} / ${totalPages} 页...`);
           try {
-            await page.render({ canvasContext: entry.ctx, viewport, background: '#ffffff' }).promise;
+            const renderContext = {
+              canvasContext: entry.ctx,
+              viewport,
+              background: '#ffffff',
+            };
+            if (outputScale !== 1) {
+              renderContext.transform = [outputScale, 0, 0, outputScale, 0, 0];
+            }
+            await page.render(renderContext).promise;
           } catch (err) {
             if (err && err.name === 'RenderingCancelledException') {
               entry.wrapper.classList.remove('pdf-page--rendering');
