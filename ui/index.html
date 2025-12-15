@@ -108,15 +108,21 @@
 	              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 0.25rem;">
 	                <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" />
 	              </svg>
-	            </button>
-	            <div id="openMenuDropdown" class="nav__dropdown" role="menu" aria-label="打开菜单">
-	              <button id="openFolderBtn" type="button" class="nav__dropdown-item">打开文件夹...</button>
-	              <button id="openFileBtn" type="button" class="nav__dropdown-item">打开文件...</button>
-	            </div>
-		          </div>
-		          <button id="langToggleBtn" type="button" class="btn btn--ghost btn-sm" aria-label="切换语言" title="切换语言">EN</button>
-		          <button id="aboutBtn" type="button" class="btn btn--ghost btn-sm" aria-label="关于" title="关于">关于</button>
-		          <input id="openFileInput" class="file-input" type="file" multiple />
+		            </button>
+		            <div id="openMenuDropdown" class="nav__dropdown" role="menu" aria-label="打开菜单">
+		              <button id="openFolderBtn" type="button" class="nav__dropdown-item">打开文件夹...</button>
+		              <button id="openFileBtn" type="button" class="nav__dropdown-item">打开文件...</button>
+		              <div class="nav__dropdown-separator" aria-hidden="true"></div>
+		              <button id="openRecentBtn" type="button" class="nav__dropdown-item nav__dropdown-item--submenu">
+		                <span id="openRecentBtnLabel">打开最近</span>
+		                <span class="nav__dropdown-count">›</span>
+		              </button>
+		              <div id="openRecentDropdown" class="nav__dropdown nav__dropdown--submenu" role="menu" aria-label="打开最近"></div>
+		            </div>
+			          </div>
+			          <button id="langToggleBtn" type="button" class="btn btn--ghost btn-sm" aria-label="切换语言" title="切换语言">EN</button>
+			          <button id="aboutBtn" type="button" class="btn btn--ghost btn-sm" aria-label="关于" title="关于">关于</button>
+			          <input id="openFileInput" class="file-input" type="file" multiple />
 		          <input id="openFolderInput" class="file-input" type="file" webkitdirectory directory multiple />
 		        </div>
 		      </div>
@@ -251,12 +257,17 @@
 		        open: '打开',
 		        openTitle: '打开文件或文件夹',
 		        openMenuLabel: '打开菜单',
-	        openFolder: '打开文件夹...',
-	        openFile: '打开文件...',
+		        openFolder: '打开文件夹...',
+		        openFile: '打开文件...',
+		        openRecent: '打开最近',
+		        openRecentMenuLabel: '打开最近',
+		        openRecentLoading: '加载中...',
+		        openRecentEmpty: '暂无最近记录',
+		        openRecentFailed: '加载最近记录失败',
 
-	        treeTitle: '目录树',
-	        searchFiles: '搜索文件...',
-	        toggleSidebar: '切换目录栏',
+		        treeTitle: '目录树',
+		        searchFiles: '搜索文件...',
+		        toggleSidebar: '切换目录栏',
 	        selectFile: '请选择文件',
 	        selectFolder: '请选择文件夹',
 	        selectFileHint: '在左侧树中选择任意文件，即可在此预览。',
@@ -380,15 +391,20 @@
 		        author: 'Author',
 		        githubUrl: 'GitHub',
 
-		        open: 'Open',
-		        openTitle: 'Open file or folder',
-		        openMenuLabel: 'Open menu',
-	        openFolder: 'Open folder...',
-	        openFile: 'Open file...',
+			        open: 'Open',
+			        openTitle: 'Open file or folder',
+			        openMenuLabel: 'Open menu',
+		        openFolder: 'Open folder...',
+		        openFile: 'Open file...',
+		        openRecent: 'Open recent',
+		        openRecentMenuLabel: 'Open recent',
+		        openRecentLoading: 'Loading...',
+		        openRecentEmpty: 'No recent items',
+		        openRecentFailed: 'Failed to load recent items',
 
-	        treeTitle: 'Directory',
-	        searchFiles: 'Search files...',
-	        toggleSidebar: 'Toggle sidebar',
+		        treeTitle: 'Directory',
+		        searchFiles: 'Search files...',
+		        toggleSidebar: 'Toggle sidebar',
 	        selectFile: 'Select a file',
 	        selectFolder: 'Select a folder',
 	        selectFileHint: 'Select any file in the tree to preview it here.',
@@ -648,12 +664,18 @@
 	      if (typeof openFolderBtn !== 'undefined' && openFolderBtn) {
 	        openFolderBtn.textContent = t('openFolder');
 	      }
-	      if (typeof openFileBtn !== 'undefined' && openFileBtn) {
-	        openFileBtn.textContent = t('openFile');
-	      }
-	      if (typeof treeTitleEl !== 'undefined' && treeTitleEl) {
-	        treeTitleEl.textContent = t('treeTitle');
-	      }
+		      if (typeof openFileBtn !== 'undefined' && openFileBtn) {
+		        openFileBtn.textContent = t('openFile');
+		      }
+		      if (typeof openRecentBtnLabel !== 'undefined' && openRecentBtnLabel) {
+		        openRecentBtnLabel.textContent = t('openRecent');
+		      }
+		      if (typeof openRecentDropdown !== 'undefined' && openRecentDropdown) {
+		        openRecentDropdown.setAttribute('aria-label', t('openRecentMenuLabel'));
+		      }
+		      if (typeof treeTitleEl !== 'undefined' && treeTitleEl) {
+		        treeTitleEl.textContent = t('treeTitle');
+		      }
 	      if (typeof treeSearchInput !== 'undefined' && treeSearchInput) {
 	        treeSearchInput.placeholder = t('searchFiles');
 	      }
@@ -875,11 +897,14 @@
 	    const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
 	    const openMenuBtn = document.getElementById('openMenuBtn');
 	    const openMenuBtnLabel = document.getElementById('openMenuBtnLabel');
-	    const openMenuDropdown = document.getElementById('openMenuDropdown');
-	    const openFileBtn = document.getElementById('openFileBtn');
-	    const openFolderBtn = document.getElementById('openFolderBtn');
-	    const openFileInput = document.getElementById('openFileInput');
-	    const openFolderInput = document.getElementById('openFolderInput');
+		    const openMenuDropdown = document.getElementById('openMenuDropdown');
+		    const openFileBtn = document.getElementById('openFileBtn');
+		    const openFolderBtn = document.getElementById('openFolderBtn');
+		    const openRecentBtn = document.getElementById('openRecentBtn');
+		    const openRecentBtnLabel = document.getElementById('openRecentBtnLabel');
+		    const openRecentDropdown = document.getElementById('openRecentDropdown');
+		    const openFileInput = document.getElementById('openFileInput');
+		    const openFolderInput = document.getElementById('openFolderInput');
 
 		    const prevBtn = document.getElementById('prevBtn');
 		    const nextBtn = document.getElementById('nextBtn');
@@ -3780,7 +3805,7 @@
     }
     async function previewMarpit(path) {
        const txt = await fetchText(path);
-       if(!marpitInstance) marpitInstance = new window.marpit.Marpit({ markdown: 'default' });
+       if(!marpitInstance) marpitInstance = new window.marpit.Marpit({ markdown: ['default', { html: true }] });
        const {html, css} = marpitInstance.render(txt);
        const navIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>`;
        const closeIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
@@ -4043,11 +4068,11 @@
 	      }
 	    }
 
-		    async function requestOpenFolder() {
-		      if (!tauriInvoke) {
-		        if (openFolderInput) openFolderInput.click();
-		        return;
-		      }
+			    async function requestOpenFolder() {
+			      if (!tauriInvoke) {
+			        if (openFolderInput) openFolderInput.click();
+			        return;
+			      }
 
 		      const scan_id = showScanOverlay ? showScanOverlay() : null;
 		      try {
@@ -4059,12 +4084,31 @@
 		        showPreviewPlaceholder(t('openFolderFailed', { message: error?.message || String(error) }));
 		      } finally {
 		        if (typeof hideScanOverlay === 'function') hideScanOverlay();
-		      }
-		    }
+			      }
+			    }
 
-	    function applyLocalFileSelection(fileList, sourceHint) {
-	      const files = Array.from(fileList || []).filter((f) => f && typeof f === 'object');
-	      if (!files.length) return;
+			    async function requestOpenFile() {
+			      if (!tauriInvoke) {
+			        if (openFileInput) openFileInput.click();
+			        return;
+			      }
+
+			      const scan_id = showScanOverlay ? showScanOverlay() : null;
+			      try {
+			        const scan = await tauriInvoke('pick_and_scan_file', scan_id ? { scan_id } : undefined);
+			        if (!scan) return;
+			        applyScannedFolderSelection(scan);
+			      } catch (error) {
+			        console.error(error);
+			        showPreviewPlaceholder(t('openFailed', { message: error?.message || String(error) }));
+			      } finally {
+			        if (typeof hideScanOverlay === 'function') hideScanOverlay();
+			      }
+			    }
+
+		    function applyLocalFileSelection(fileList, sourceHint) {
+		      const files = Array.from(fileList || []).filter((f) => f && typeof f === 'object');
+		      if (!files.length) return;
 
 	      cleanupDrawioPanHandlers();
 	      cleanupPptxViewer();
@@ -4123,23 +4167,109 @@
 	      }
 	    }
 
-	    function setupOpenMenu() {
-	      if (!openMenuBtn || !openMenuDropdown) return;
+		    function setupOpenMenu() {
+		      if (!openMenuBtn || !openMenuDropdown) return;
 
-	      const closeMenu = () => {
-	        openMenuDropdown.classList.remove('is-open');
-	        openMenuBtn.setAttribute('aria-expanded', 'false');
-	      };
+		      const closeRecentMenu = () => {
+		        if (!openRecentDropdown) return;
+		        openRecentDropdown.classList.remove('is-open');
+		      };
 
-	      const toggleMenu = () => {
-	        const isOpen = openMenuDropdown.classList.toggle('is-open');
-	        openMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-	      };
+		      const closeMenu = () => {
+		        openMenuDropdown.classList.remove('is-open');
+		        openMenuBtn.setAttribute('aria-expanded', 'false');
+		        closeRecentMenu();
+		      };
 
-	      openMenuBtn.addEventListener('click', (event) => {
-	        event.stopPropagation();
-	        toggleMenu();
-	      });
+		      const toggleMenu = () => {
+		        closeRecentMenu();
+		        const isOpen = openMenuDropdown.classList.toggle('is-open');
+		        openMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+		      };
+
+		      const renderRecentMenuMessage = (message) => {
+		        if (!openRecentDropdown) return;
+		        openRecentDropdown.textContent = '';
+		        const placeholder = document.createElement('button');
+		        placeholder.type = 'button';
+		        placeholder.className = 'nav__dropdown-item';
+		        placeholder.disabled = true;
+		        placeholder.textContent = message;
+		        openRecentDropdown.appendChild(placeholder);
+		      };
+
+		      const refreshRecentMenu = async () => {
+		        if (!openRecentDropdown) return;
+		        if (!tauriInvoke) {
+		          renderRecentMenuMessage(t('openRecentEmpty'));
+		          return;
+		        }
+
+		        renderRecentMenuMessage(t('openRecentLoading'));
+		        let entries = [];
+		        try {
+		          const loaded = await tauriInvoke('get_recent_paths', { limit: 20 });
+		          if (Array.isArray(loaded)) entries = loaded.filter((value) => typeof value === 'string' && value.trim());
+		        } catch (error) {
+		          console.error(error);
+		          renderRecentMenuMessage(t('openRecentFailed'));
+		          return;
+		        }
+
+		        if (!entries.length) {
+		          renderRecentMenuMessage(t('openRecentEmpty'));
+		          return;
+		        }
+
+		        openRecentDropdown.textContent = '';
+		        entries.forEach((entry) => {
+		          const path = String(entry).trim();
+		          if (!path) return;
+		          const button = document.createElement('button');
+		          button.type = 'button';
+		          button.className = 'nav__dropdown-item open-recent-item';
+		          button.title = path;
+
+		          const label = document.createElement('span');
+		          label.className = 'open-recent-item__label';
+		          label.textContent = getFileName(String(path).replace(/\\/g, '/')) || path;
+
+		          const meta = document.createElement('span');
+		          meta.className = 'open-recent-item__path';
+		          meta.textContent = path;
+
+		          button.appendChild(label);
+		          button.appendChild(meta);
+
+		          button.addEventListener('click', () => {
+		            closeMenu();
+		            const scan_id = showScanOverlay ? showScanOverlay() : null;
+		            Promise.resolve()
+		              .then(async () => {
+		                const scan = await tauriInvoke(
+		                  'scan_path',
+		                  scan_id ? { path: String(path), scan_id } : { path: String(path) },
+		                );
+		                if (!scan) return;
+		                applyScannedFolderSelection(scan);
+		              })
+		              .catch((error) => {
+		                console.error(error);
+		                showPreviewPlaceholder(t('openFailed', { message: error?.message || String(error) }));
+		              })
+		              .finally(() => {
+		                if (typeof hideScanOverlay === 'function') hideScanOverlay();
+		              });
+		          });
+
+		          openRecentDropdown.appendChild(button);
+		        });
+		      };
+
+		      openMenuBtn.addEventListener('click', (event) => {
+		        event.stopPropagation();
+		        toggleMenu();
+		      });
 
 	      document.addEventListener('click', (event) => {
 	        const target = event.target;
@@ -4152,25 +4282,40 @@
 	        if (event.key === 'Escape') closeMenu();
 	      });
 
-	      if (openFolderBtn) {
-	        openFolderBtn.addEventListener('click', () => {
-	          closeMenu();
-	          void requestOpenFolder();
-	        });
-	      }
-
-		      if (openFileBtn) {
-		        openFileBtn.addEventListener('click', () => {
+		      if (openFolderBtn) {
+		        openFolderBtn.addEventListener('click', () => {
 		          closeMenu();
-		          if (openFileInput) openFileInput.click();
+		          void requestOpenFolder();
 		        });
 		      }
 
-		      if (openFileInput) {
-		        openFileInput.addEventListener('change', (event) => {
-		          const input = event.target;
-	          const files = input?.files;
-	          if (files && files.length) applyLocalFileSelection(files, t('openedFiles'));
+			      if (openFileBtn) {
+			        openFileBtn.addEventListener('click', () => {
+			          closeMenu();
+			          void requestOpenFile();
+			        });
+			      }
+
+			      if (openRecentBtn) {
+			        if (!tauriInvoke) {
+			          openRecentBtn.disabled = true;
+			        }
+			        openRecentBtn.addEventListener('click', () => {
+			          if (!openRecentDropdown) return;
+			          if (!tauriInvoke) return;
+			          const isOpen = openRecentDropdown.classList.toggle('is-open');
+			          if (isOpen) {
+			            openRecentDropdown.style.top = `${openRecentBtn.offsetTop}px`;
+			            void refreshRecentMenu();
+			          }
+			        });
+			      }
+
+			      if (openFileInput) {
+			        openFileInput.addEventListener('change', (event) => {
+			          const input = event.target;
+		          const files = input?.files;
+		          if (files && files.length) applyLocalFileSelection(files, t('openedFiles'));
 	          if (input) input.value = '';
 	        });
 	      }

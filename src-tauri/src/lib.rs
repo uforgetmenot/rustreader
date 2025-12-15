@@ -9,6 +9,7 @@ use tauri::Manager;
 const SCAN_PROGRESS_EVENT: &str = "rustreader_scan_progress";
 const APP_PREFIX: &str = "rustreader";
 const APP_TITLE_PREFIX: &str = "rustreader - ";
+const RECENT_LIMIT_DEFAULT: usize = 20;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -74,6 +75,88 @@ fn config_file_path() -> Result<PathBuf, String> {
   home.push(".rustreader");
   home.push("config");
   Ok(home)
+}
+
+fn recent_file_path() -> Result<PathBuf, String> {
+  let mut home = home_dir().ok_or_else(|| "无法获取用户主目录".to_string())?;
+  home.push(".rustreader");
+  home.push("recent");
+  Ok(home)
+}
+
+fn sanitize_recent_entry(value: &str) -> Option<String> {
+  let value = value.trim();
+  if value.is_empty() {
+    return None;
+  }
+  let value = value.replace('\n', "").replace('\r', "").trim().to_string();
+  if value.is_empty() {
+    return None;
+  }
+  Some(value)
+}
+
+fn load_recent_from_disk() -> Result<Vec<String>, String> {
+  let path = recent_file_path()?;
+  let content = match std::fs::read_to_string(&path) {
+    Ok(content) => content,
+    Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+    Err(error) => return Err(format!("读取最近记录失败 ({}): {}", path.display(), error)),
+  };
+
+  let mut entries = Vec::new();
+  for line in content.lines() {
+    let Some(entry) = sanitize_recent_entry(line) else {
+      continue;
+    };
+    if entries.iter().any(|existing| existing == &entry) {
+      continue;
+    }
+    entries.push(entry);
+  }
+
+  Ok(entries)
+}
+
+fn save_recent_to_disk(entries: &[String]) -> Result<(), String> {
+  let path = recent_file_path()?;
+  if let Some(parent) = path.parent() {
+    std::fs::create_dir_all(parent)
+      .map_err(|error| format!("创建最近记录目录失败 ({}): {}", parent.display(), error))?;
+  }
+
+  let content = if entries.is_empty() {
+    String::new()
+  } else {
+    let mut value = entries.join("\n");
+    value.push('\n');
+    value
+  };
+
+  let tmp_path = path.with_extension("tmp");
+  std::fs::write(&tmp_path, content.as_bytes())
+    .map_err(|error| format!("写入最近记录失败 ({}): {}", tmp_path.display(), error))?;
+
+  if std::fs::rename(&tmp_path, &path).is_err() {
+    let _ = std::fs::remove_file(&path);
+    std::fs::rename(&tmp_path, &path)
+      .map_err(|error| format!("替换最近记录失败 ({}): {}", path.display(), error))?;
+  }
+
+  Ok(())
+}
+
+fn record_recent_path(path: &Path) -> Result<(), String> {
+  let raw = path.to_string_lossy();
+  let Some(value) = sanitize_recent_entry(raw.as_ref()) else {
+    return Ok(());
+  };
+
+  let mut entries = load_recent_from_disk().unwrap_or_default();
+  entries.retain(|existing| existing != &value);
+  entries.insert(0, value);
+  entries.truncate(RECENT_LIMIT_DEFAULT);
+  save_recent_to_disk(&entries)
 }
 
 fn strip_app_title_prefix(value: &str) -> &str {
@@ -471,6 +554,7 @@ fn scan_path(
     .map_err(|error| format!("路径不存在或无法访问: {}", error))?;
 
   if abs_path.is_dir() {
+    let _ = record_recent_path(&abs_path);
     let label = abs_path
       .file_name()
       .map(|name| name.to_string_lossy().into_owned())
@@ -487,6 +571,7 @@ fn scan_path(
     let Some(category) = categorize_file(&abs_path) else {
       return Err("不支持打开该文件类型（仅支持可预览的文件扩展名）".to_string());
     };
+    let _ = record_recent_path(&abs_path);
 
     let virtual_path = abs_path
       .file_name()
@@ -519,16 +604,68 @@ fn pick_and_scan_folder(
     return Err("选择的路径不是文件夹".to_string());
   }
 
-  let label = root
+  let abs_root = root.canonicalize().unwrap_or(root);
+  let _ = record_recent_path(&abs_root);
+
+  let label = abs_root
     .file_name()
     .map(|name| name.to_string_lossy().into_owned())
-    .unwrap_or_else(|| root.display().to_string());
+    .unwrap_or_else(|| abs_root.display().to_string());
 
   Ok(Some(ScanResult {
-    root: root.to_string_lossy().into_owned(),
+    root: abs_root.to_string_lossy().into_owned(),
     label,
-    files: scan_supported_files(&app, scan_id.as_deref(), &root),
+    files: scan_supported_files(&app, scan_id.as_deref(), &abs_root),
   }))
+}
+
+#[tauri::command]
+fn pick_and_scan_file(
+  app: tauri::AppHandle,
+  scan_id: Option<String>,
+) -> Result<Option<ScanResult>, String> {
+  let Some(input) = rfd::FileDialog::new().pick_file() else {
+    return Ok(None);
+  };
+
+  let abs_path = input.canonicalize().unwrap_or(input);
+  if abs_path.is_dir() {
+    let _ = record_recent_path(&abs_path);
+    let label = abs_path
+      .file_name()
+      .map(|name| name.to_string_lossy().into_owned())
+      .unwrap_or_else(|| abs_path.display().to_string());
+
+    return Ok(Some(ScanResult {
+      root: abs_path.to_string_lossy().into_owned(),
+      label,
+      files: scan_supported_files(&app, scan_id.as_deref(), &abs_path),
+    }));
+  }
+
+  if abs_path.is_file() {
+    let Some(category) = categorize_file(&abs_path) else {
+      return Err("不支持打开该文件类型（仅支持可预览的文件扩展名）".to_string());
+    };
+    let _ = record_recent_path(&abs_path);
+
+    let virtual_path = abs_path
+      .file_name()
+      .map(|name| name.to_string_lossy().into_owned())
+      .unwrap_or_else(|| abs_path.display().to_string());
+
+    return Ok(Some(ScanResult {
+      root: abs_path.to_string_lossy().into_owned(),
+      label: virtual_path.clone(),
+      files: vec![ScanFile {
+        virtual_path,
+        abs_path: abs_path.to_string_lossy().into_owned(),
+        category: category.to_string(),
+      }],
+    }));
+  }
+
+  Err("路径不是文件或文件夹".to_string())
 }
 
 #[tauri::command]
@@ -548,6 +685,18 @@ fn save_app_config(config: AppConfig) -> Result<(), String> {
   save_config_to_disk(&merged)
 }
 
+#[tauri::command]
+fn get_recent_paths(limit: Option<u32>) -> Result<Vec<String>, String> {
+  let limit = limit
+    .and_then(|value| usize::try_from(value).ok())
+    .filter(|value| *value > 0)
+    .unwrap_or(RECENT_LIMIT_DEFAULT);
+
+  let mut entries = load_recent_from_disk().unwrap_or_default();
+  entries.truncate(limit);
+  Ok(entries)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -557,7 +706,9 @@ pub fn run() {
       set_app_window_title,
       load_app_config,
       save_app_config,
+      get_recent_paths,
       scan_path,
+      pick_and_scan_file,
       pick_and_scan_folder
     ])
     .setup(|app| {
